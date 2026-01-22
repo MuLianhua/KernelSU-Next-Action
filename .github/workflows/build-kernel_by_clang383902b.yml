@@ -108,6 +108,20 @@ jobs:
         git clone https://github.com/tomxi1997/lxc-docker-support-for-android.git utils
         echo 'source "utils/Kconfig"' >> "Kconfig"
 
+        # ===== 核心修复：应用必需的内核补丁 =====
+        # 应用对cgroup和调度器的关键修改，解决 fair.c 编译错误
+        if [ -f utils/fix_cgroup.patch ]; then
+            patch -p1 < utils/fix_cgroup.patch
+        else
+            echo "警告：未找到 utils/fix_cgroup.patch，这可能导致功能不完整。"
+        fi
+        if [ -f utils/fix_panic.patch ]; then
+            patch -p1 < utils/fix_panic.patch
+        else
+            echo "警告：未找到 utils/fix_panic.patch，这可能导致功能不完整。"
+        fi
+        # ===== 核心修复结束 =====
+
         echo "CONFIG_DOCKER=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
         echo "CONFIG_BINFMT_MISC=y" >> arch/${{ env.ARCH }}/configs/${{ env.KERNEL_CONFIG }}
 
