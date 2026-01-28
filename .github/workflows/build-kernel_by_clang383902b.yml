@@ -39,12 +39,11 @@ jobs:
         echo "ENABLE_LXC=$(cat $CONFIG_ENV | grep -w "ENABLE_LXC" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         echo "DISABLE_FST=$(cat $CONFIG_ENV | grep -w "DISABLE_FST" | head -n 1 | cut -d "=" -f 2)" >> $GITHUB_ENV
         
-        # GPU超频配置
+        # 新增GPU超频配置
         echo "GPU_OC_ENABLE=$(cat $CONFIG_ENV | grep -w "GPU_OC_ENABLE" | head -n 1 | cut -d "=" -f 2 || echo "false")" >> $GITHUB_ENV
         echo "GPU_OC_FREQ=$(cat $CONFIG_ENV | grep -w "GPU_OC_FREQ" | head -n 1 | cut -d "=" -f 2 || echo "820000000")" >> $GITHUB_ENV
         echo "GPU_OC_ORIGINAL_FREQ=$(cat $CONFIG_ENV | grep -w "GPU_OC_ORIGINAL_FREQ" | head -n 1 | cut -d "=" -f 2 || echo "710000000")" >> $GITHUB_ENV
         echo "GPU_OC_DTS_FILE=$(cat $CONFIG_ENV | grep -w "GPU_OC_DTS_FILE" | head -n 1 | cut -d "=" -f 2 || echo "arch/arm64/boot/dts/qcom/sdm845-v2.dtsi")" >> $GITHUB_ENV
-        echo "GPU_OC_CLK_FILE=$(cat $CONFIG_ENV | grep -w "GPU_OC_CLK_FILE" | head -n 1 | cut -d "=" -f 2 || echo "drivers/clk/qcom/gpucc-sdm845.c")" >> $GITHUB_ENV
         
         # 修复缺失的USE_GCC变量
         echo "USE_GCC=$(cat $CONFIG_ENV | grep -w "USE_GCC" | head -n 1 | cut -d "=" -f 2 || echo "false")" >> $GITHUB_ENV
@@ -77,12 +76,11 @@ jobs:
       if: env.GPU_OC_ENABLE == 'true'
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace/android-kernel
-        echo "=== 开始GPU超频修改 ==="
+        echo "=== Applying GPU Overclock Modification ==="
         
-        # 1. 修改设备树文件
-        echo "1. 修改设备树文件..."
+        # 检查设备树文件是否存在
         if [ -f "${{ env.GPU_OC_DTS_FILE }}" ]; then
-          echo "修改GPU频率从 ${{ env.GPU_OC_ORIGINAL_FREQ }} 到 ${{ env.GPU_OC_FREQ }}..."
+          echo "Modifying GPU frequency from ${{ env.GPU_OC_ORIGINAL_FREQ }} to ${{ env.GPU_OC_FREQ }}..."
           
           # 备份原始文件
           cp "${{ env.GPU_OC_DTS_FILE }}" "${{ env.GPU_OC_DTS_FILE }}.backup"
@@ -90,45 +88,15 @@ jobs:
           # 使用sed替换频率
           sed -i "s/${{ env.GPU_OC_ORIGINAL_FREQ }}/${{ env.GPU_OC_FREQ }}/g" "${{ env.GPU_OC_DTS_FILE }}"
           
-          echo "设备树修改完成"
-          echo "验证修改:"
-          grep -n "${{ env.GPU_OC_FREQ }}" "${{ env.GPU_OC_DTS_FILE }}" || echo "频率未在文件中找到"
+          # 验证修改
+          echo "=== Verification ==="
+          grep -n "${{ env.GPU_OC_FREQ }}" "${{ env.GPU_OC_DTS_FILE }}" || echo "Frequency not found in file"
+          echo "GPU overclock applied successfully!"
         else
-          echo "警告: 设备树文件未找到: ${{ env.GPU_OC_DTS_FILE }}"
-          echo "可用QCOM设备树文件:"
-          find arch/arm64/boot/dts/qcom -name "*.dts*" 2>/dev/null | head -10
+          echo "Warning: GPU OC DTS file not found: ${{ env.GPU_OC_DTS_FILE }}"
+          echo "Available QCOM DTS files:"
+          find arch/arm64/boot/dts/qcom -name "*.dts*" 2>/dev/null | head -20
         fi
-        
-        # 2. 修改时钟驱动文件
-        echo "2. 修改时钟驱动文件..."
-        if [ -f "${{ env.GPU_OC_CLK_FILE }}" ]; then
-          echo "备份原始时钟驱动文件..."
-          cp "${{ env.GPU_OC_CLK_FILE }}" "${{ env.GPU_OC_CLK_FILE }}.backup"
-          
-          # 查找并添加820MHz频率定义
-          echo "添加新的频率定义..."
-          if grep -q "710000000.*P_CRC_DIV" "${{ env.GPU_OC_CLK_FILE }}"; then
-            # 在710MHz行后添加820MHz定义
-            sed -i "/710000000.*P_CRC_DIV/a\        F(${{ env.GPU_OC_FREQ }}, P_CRC_DIV,  1, 0, 0)," "${{ env.GPU_OC_CLK_FILE }}"
-            echo "已添加新的频率定义"
-          else
-            echo "未找到710MHz频率定义行，尝试直接修改最大频率"
-          fi
-          
-          # 修改最大频率
-          echo "修改最大频率..."
-          sed -i "s/710000000/${{ env.GPU_OC_FREQ }}/g" "${{ env.GPU_OC_CLK_FILE }}"
-          
-          echo "时钟驱动修改完成"
-          echo "验证时钟驱动中的${{ env.GPU_OC_FREQ }}频率:"
-          grep -n "${{ env.GPU_OC_FREQ }}" "${{ env.GPU_OC_CLK_FILE }}"
-        else
-          echo "警告: 时钟驱动文件未找到: ${{ env.GPU_OC_CLK_FILE }}"
-          echo "可用时钟驱动文件:"
-          find drivers/clk/qcom -name "*.c" 2>/dev/null | head -10 | grep -i gpu
-        fi
-        
-        echo "=== GPU超频修改完成 ==="
 
     - name: Download source boot image
       if: env.BUILD_BOOT_IMG == 'true'
