@@ -55,7 +55,7 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE/kernel_workspace
         mkdir clang-aosp
-        git clone https://github.com/tomxi1997/Toolchain.git clang-aosp --depth=1
+        git clone https://github.com/kdrag0n/proton-clang.git clang-aosp --depth=1
 
     - name: Download kernel source
       run: |
